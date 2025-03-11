@@ -1,8 +1,6 @@
-
 package part_4_fileApp;
 
 import javafx.application.Application;
-import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -80,7 +78,7 @@ public class File_IO_App extends Application
 
         Button submitButton = new Button("Send");
 
-        // Button that prints information about everyone registred in console if file exhists
+        // Button that prints information about everyone registered in console if file exists
         Button showAllButton = new Button("Show All Registered");
         showAllButton.setOnAction(e -> {
             File file = new File("applicant_data.txt");
@@ -103,37 +101,42 @@ public class File_IO_App extends Application
             }
         });
 
+        // --- New Code Start: Applicant Dropdown Declaration ---
+        ComboBox<String> applicantDropdown = new ComboBox<>();
+        applicantDropdown.setPromptText("Select Applicant");
+        // --- New Code End: Applicant Dropdown Declaration ---
+
         // When the button is pressed, we receive info in console if there are no issues
         submitButton.setOnAction(e -> {
             boolean isValid = true;
 
-//Checking if nameField is not empty
+            // Checking if nameField is not empty
             if (nameField.getText().isEmpty())
             {
                 nameErrorLabel.setText("Name field cannot be empty!");
                 isValid = false;
             } else nameErrorLabel.setText("");
 
-            //Checking if surnameField is not empty
+            // Checking if surnameField is not empty
             if (surnameField.getText().isEmpty())
             {
                 surnameErrorLabel.setText("Surname field cannot be empty!");
                 isValid = false;
             } else surnameErrorLabel.setText("");
 
-            //Checking if emailField is not empty
+            // Checking if emailField is not empty
             if (emailField.getText().isEmpty())
             {
                 emailErrorLabel.setText("Email field cannot be empty!");
                 isValid = false;
             } else emailErrorLabel.setText("");
 
-            //Checking if there is integer in ageField
+            // Checking if there is integer in ageField
             if (ageField.getText().matches("\\d+"))
             {
                 int age = Integer.parseInt(ageField.getText());
 
-                //Checking if age is between 15 and 100
+                // Checking if age is between 15 and 100
                 if (age < 15 || age > 100)
                 {
                     ageErrorLabel.setText("Age should be between 15 and 100!");
@@ -150,7 +153,7 @@ public class File_IO_App extends Application
                 isValid = false;
             }
 
-            //Checking if program is chosen
+            // Checking if program is chosen
             if (program.getValue() == null)
             {
                 programErrorLabel.setText("Please choose the program!");
@@ -158,7 +161,7 @@ public class File_IO_App extends Application
             }
             else programErrorLabel.setText("");
 
-            //Checking if gender is chosen
+            // Checking if gender is chosen
             if (genderGroup.getSelectedToggle() == null)
             {
                 genderErrorLabel.setText("Please choose your gender!");
@@ -166,14 +169,14 @@ public class File_IO_App extends Application
             }
             else genderErrorLabel.setText("");
 
-            //Checking if motivationArea is not empty
+            // Checking if motivationArea is not empty
             if (motivationArea.getText().isEmpty())
             {
                 motivationErrorLabel.setText("Name field cannot be empty!");
                 isValid = false;
             } else motivationErrorLabel.setText("");
 
-            //If no issues - sending info to terminal
+            // If no issues - sending info to console and saving to files
             if (isValid)
             {
                 String report = "Name: " + nameField.getText() + "\n" +
@@ -213,19 +216,81 @@ public class File_IO_App extends Application
                     ex.printStackTrace();
                 }
 
-                Platform.exit();
+                // --- Modification Start: Remove exit and update dropdown ---
+                // Platform.exit();
+                loadApplicantFiles(applicantDropdown);
+                // --- Modification End: Remove exit and update dropdown ---
             }
         });
 
-        // VBox that contains all application
+        // --- New Code Start: Applicant Dropdown Event Handler ---
+        applicantDropdown.setOnAction(e -> {
+            String selectedFile = applicantDropdown.getValue();
+            if (selectedFile != null) {
+                try (BufferedReader reader = new BufferedReader(new FileReader(selectedFile))) {
+                    String line;
+                    StringBuilder motivationBuilder = new StringBuilder();
+                    while ((line = reader.readLine()) != null) {
+                        if (line.startsWith("Name: ")) {
+                            nameField.setText(line.substring(6));
+                        } else if (line.startsWith("Surname: ")) {
+                            surnameField.setText(line.substring(9));
+                        } else if (line.startsWith("Email: ")) {
+                            emailField.setText(line.substring(7));
+                        } else if (line.startsWith("Age: ")) {
+                            ageField.setText(line.substring(5));
+                        } else if (line.startsWith("Program: ")) {
+                            program.setValue(line.substring(9));
+                        } else if (line.startsWith("Sex: ")) {
+                            if (line.contains("Male"))
+                                maleRadio.setSelected(true);
+                            else
+                                femaleRadio.setSelected(true);
+                        } else if (line.startsWith("Motivation: ")) {
+                            // Clear previous motivation text
+                            motivationBuilder.setLength(0);
+                        } else if (line.equals("//////////////////////////////")) {
+                            break;
+                        } else {
+                            motivationBuilder.append(line).append("\n");
+                        }
+                    }
+                    motivationArea.setText(motivationBuilder.toString());
+                } catch (IOException ex) {
+                    ex.printStackTrace();
+                }
+            }
+        });
+        // --- New Code End: Applicant Dropdown Event Handler ---
+
+        // VBox that contains all application elements
         VBox layout = new VBox(10);
         layout.setPadding(new Insets(20));
-        layout.getChildren().addAll(nameBox, surnameBox, emailBox, ageBox, programBox, mainGenderBox, motivationBox, submitButton, showAllButton);
+        // --- Modification Start: Add applicantDropdown to layout ---
+        layout.getChildren().addAll(nameBox, surnameBox, emailBox, ageBox, programBox, mainGenderBox, motivationBox, submitButton, showAllButton, applicantDropdown);
+        // --- Modification End: Add applicantDropdown to layout ---
 
-        // Creating scene (400px/400px) with overall VBox
+        // --- New Code Start: Populate dropdown on startup ---
+        loadApplicantFiles(applicantDropdown);
+        // --- New Code End: Populate dropdown on startup ---
+
+        // Creating scene (500px x 500px) with overall VBox
         Scene scene = new Scene(layout, 500, 500);
         primaryStage.setTitle("Questionary for AUK applicant");
         primaryStage.setScene(scene);
         primaryStage.show();
     }
+
+    // --- New Code Start: loadApplicantFiles method ---
+    private void loadApplicantFiles(ComboBox<String> dropdown) {
+        File currentDir = new File(".");
+        File[] files = currentDir.listFiles((dir, name) -> name.endsWith("_form.txt"));
+        if (files != null) {
+            dropdown.getItems().clear();
+            for (File f : files) {
+                dropdown.getItems().add(f.getName());
+            }
+        }
+    }
+    // --- New Code End: loadApplicantFiles method ---
 }
